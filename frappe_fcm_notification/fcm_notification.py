@@ -1,4 +1,3 @@
-import json
 import requests
 import frappe
 from frappe import enqueue
@@ -21,10 +20,8 @@ def user_id(doc):
     return user_device_id
 
 @frappe.whitelist()
-
 def notification_queue(doc,method):
     device_token = user_id(doc)
-    # frappe.log_error(f"Device Token: {device_token}", "FCM Debugging")
     if device_token:
         for device in device_token:
             enqueue(
@@ -80,13 +77,8 @@ def get_cached_access_token():
             scopes=["https://www.googleapis.com/auth/firebase.messaging"]
         )
 
-        frappe.log_error(f"Credentials: {credentials}", "FCM Credentials Object")
-
         request = google_requests.Request()
         credentials.refresh(request)
-        
-        # Log for debugging purposes
-        frappe.log_error(f"Refreshed Credentials: {credentials}", "FCM Credentials Object")
 
         access_token = credentials.token
         expiration_time = add_to_date(now(), minutes=55)
@@ -100,7 +92,7 @@ def get_cached_access_token():
         return {"access_token": access_token}
     
     except Exception as e:
-        frappe.log_error(f"Error in get_cached_access_token: {str(e)}")
+        frappe.log_error(title="FCM Access Token Error", message=f"Error in get_cached_access_token: {str(e)}")
         return {"error": str(e)}
 
 @frappe.whitelist()
@@ -110,13 +102,13 @@ def send_fcm_notification(notification,device_token): #Add device token #add doc
 
     """
 
-    frappe.log_error("Notification:", notification)
-    # frappe.log_error(f"Device Token: {device_token[:50]}", "FCM Debugging")
     body = notification.email_content
     title = notification.subject
 
     body = cleanhtml(body)
     title = cleanhtml(title)
+
+    notification_sound = frappe.db.get_single_value("FCM Notification Settings", "notification_sound") or "cash_notification.wav"
 
     if isinstance(device_token, dict):
         device_token = device_token.get('device_token')
@@ -135,13 +127,13 @@ def send_fcm_notification(notification,device_token): #Add device token #add doc
             },
         "android": {
             "notification": {
-                "sound":"cash_notification.wav"
+                "sound": notification_sound
             }
         },
         "apns": {
             "payload":{
                 "aps":{
-                    "sound": 'cash_notification.wav',
+                    "sound": notification_sound,
                 }
             }
         },
@@ -152,17 +144,13 @@ def send_fcm_notification(notification,device_token): #Add device token #add doc
         }
     }
 
-    frappe.log_error(f"Payload sent: {json.dumps(payload, indent=2)}", "FCM Debugging")
-
-
     fcm_endpoint = f'https://fcm.googleapis.com/v1/projects/{get_fcm_credentials()["project_id"]}/messages:send'
     response = requests.post(fcm_endpoint, headers=headers, json=payload)
     
     if response.status_code == 200:
-        frappe.log_error("Notification sent successfully:", response.json())
         return {"status": "success", "response": response.json()}
-    
+
     else:
         error_message = f"Failed to send notification: {response.text}"
-        frappe.log_error(error_message, "FCM Notification Error")
+        frappe.log_error(title="FCM Notification Error", message=error_message)
         return {"status": "failed", "error": error_message}

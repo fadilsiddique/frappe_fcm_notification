@@ -16,6 +16,8 @@
   "auth_provider_x509_cert_url",
   "client_x509_cert_url",
   "universe_domain",
+  "ios_application_id",
+  "notification_sound",
   "section_break_vetm",
   "access_token",
   "expiration_time"
@@ -70,6 +72,20 @@
    "fieldname": "universe_domain",
    "fieldtype": "Data",
    "label": "Universe Domain"
+  },
+  {
+   "default": "com.upscape.crm",
+   "description": "iOS application bundle identifier used when importing APNS tokens.",
+   "fieldname": "ios_application_id",
+   "fieldtype": "Data",
+   "label": "iOS Application Id"
+  },
+  {
+   "default": "cash_notification.wav",
+   "description": "Sound played on the device for Android and APNS notifications.",
+   "fieldname": "notification_sound",
+   "fieldtype": "Data",
+   "label": "Notification Sound"
   },
   {
    "fieldname": "service_account",

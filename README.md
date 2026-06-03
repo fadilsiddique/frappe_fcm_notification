@@ -13,8 +13,10 @@ This repository provides integration with Firebase Cloud Messaging (FCM) for sen
 
 ---
 
-## Important Note
-For testing purposes, the code is currently configured to send notifications via FCM topics instead of device tokens. The device token-based notification payload is commented out in the send_fcm_notification function to allow easier testing with a topic-based approach. If you wish to switch back to device-specific notifications, uncomment the device_token code block and adjust the payload accordingly.
+## Compatibility
+
+This app targets **Frappe version-16** (Python 3.14). It sends notifications to individual
+device tokens registered through the **User Device** DocType.
 
 ---
 
@@ -22,7 +24,7 @@ For testing purposes, the code is currently configured to send notifications via
 
 ### Prerequisites
 
-- Ensure your Frappe/ERPNext environment is running.
+- Ensure your Frappe/ERPNext (version-16) environment is running.
 
 ### Step 1: Clone the Repository
 
@@ -74,7 +76,12 @@ Follow these steps to configure FCM Notification Settings in your Frappe/ERPNext
    - `Auth Provider X509 Cert URL`: `"auth_provider_x509_cert_url"` from JSON
    - `Client X509 Cert URL`: `"client_x509_cert_url"` from JSON
 
-3. Save the settings.
+3. Optionally adjust the delivery fields (defaults are applied automatically):
+
+   - `iOS Application Id`: bundle identifier used when importing APNS tokens (default `com.upscape.crm`)
+   - `Notification Sound`: sound played for Android and APNS notifications (default `cash_notification.wav`)
+
+4. Save the settings.
 
 ---
 
@@ -90,7 +97,7 @@ Follow these steps to configure FCM Notification Settings in your Frappe/ERPNext
 ### Logging and Error Handling
 
 - Errors are logged in **Error Logs** in Frappe, allowing you to view and debug any issues that occur during notification sending.
-- You can limit the length of logged access tokens to prevent security issues (e.g., only logging the first 50 characters).
+- Credentials, access tokens, and message payloads are not written to the Error Log.
 
 
 ---

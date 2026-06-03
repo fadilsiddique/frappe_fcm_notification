@@ -1,7 +1,7 @@
 {
  "actions": [],
  "allow_rename": 1,
- "autoname": "DEV-.####",
+ "autoname": "format:DEV-{####}",
  "creation": "2024-11-11 09:50:06.570880",
  "doctype": "DocType",
  "engine": "InnoDB",
@@ -48,7 +48,7 @@
  "modified_by": "Administrator",
  "module": "Frappe Fcm Notification",
  "name": "User Device",
- "naming_rule": "Expression (old style)",
+ "naming_rule": "Expression",
  "owner": "Administrator",
  "permissions": [
   {
