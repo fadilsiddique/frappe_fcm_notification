@@ -91,14 +91,48 @@ Follow these steps to configure FCM Notification Settings in your Frappe/ERPNext
 1. Link your device id to each user using the User Device DocType.
 2. Create a notification in Frappe/ERPNext (https://docs.erpnext.com/docs/user/manual/en/notifications)
 3. Run an event that triggers any notification. The notifcation will be send the respetive user via FCM if they have subscribed to it.
-4. Optionally you can use whitelisted method `api/method/frappe_fcm_notification.fcm_notification.notification_queue` to test in postman.
+
+Sending is triggered by `Notification Log` inserts only. As of 0.1.0 the app exposes
+**no HTTP endpoints** — see [Security](#security).
 
 
 ### Logging and Error Handling
 
 - Errors are logged in **Error Logs** in Frappe, allowing you to view and debug any issues that occur during notification sending.
-- Credentials, access tokens, and message payloads are not written to the Error Log.
+- Credentials, access tokens, device tokens, and message payloads are not written to the Error Log.
 
+
+---
+
+## Security
+
+### Credential disclosure in versions ≤ 0.0.1 — action required
+
+Versions up to and including `0.0.1` exposed the FCM service account over HTTP. Four
+functions were whitelisted, and one of them was reachable without logging in at all, so
+any authenticated user — including a self-registered Website User on an ERPNext site —
+could retrieve the **decrypted service account private key** and a live OAuth bearer
+token, and push arbitrary notifications to any device token.
+
+Fixed in `0.1.0`: the app now exposes no whitelisted methods and no guest endpoints.
+
+**Upgrading is not sufficient on its own.** If your site ever ran `0.0.1` or earlier:
+
+1. **Rotate the Firebase service account key.** Firebase Console → Project Settings →
+   Service Accounts → generate a new private key, update **FCM Notification Settings**,
+   then **delete the old key**. Adding a new key without deleting the old one leaves the
+   exposed key valid.
+2. **Audit IAM** for that service account — it should hold only
+   `roles/firebasemessaging.admin` or narrower. Broader project roles mean the disclosure
+   extended beyond push access.
+3. **Purge Error Log.** Builds before `0.0.1`'s cleanup wrote message payloads, device
+   tokens and the credentials object into Error Log, which every System Manager can read
+   and which is included in support exports.
+
+### Reporting
+
+Report vulnerabilities through a GitHub Security Advisory on this repository rather than
+a public issue.
 
 ---
 
