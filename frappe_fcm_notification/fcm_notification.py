@@ -3,13 +3,34 @@ import frappe
 from frappe import enqueue
 from google.oauth2 import service_account
 from google.auth.transport import requests as google_requests
-from frappe.utils import now, add_to_date
+from frappe.utils import now, add_to_date, get_datetime, now_datetime
 import re
+
+# Connect timeout, read timeout. Without these a hung connection parks an RQ worker
+# indefinitely.
+FCM_TIMEOUT = (3.05, 10)
+
 
 def cleanhtml(raw_html):
     cleanr = re.compile('<.*?>')
     cleantext = re.sub(cleanr, '', raw_html)
     return cleantext
+
+
+def fcm_error_summary(response):
+    """Summarise an FCM error response for logging.
+
+    Never returns the response body verbatim: FCM echoes the device token back in
+    INVALID_ARGUMENT responses, and Error Log is readable by every System Manager.
+    """
+    try:
+        error = (response.json() or {}).get("error") or {}
+    except ValueError:
+        error = {}
+
+    codes = [d.get("errorCode") for d in error.get("details") or [] if d.get("errorCode")]
+    parts = [f"HTTP {response.status_code}", error.get("status") or "", " ".join(codes)]
+    return " ".join(p for p in parts if p)
 
 
 def user_id(doc):
@@ -19,7 +40,6 @@ def user_id(doc):
     )
     return user_device_id
 
-@frappe.whitelist()
 def notification_queue(doc,method):
     device_token = user_id(doc)
     if device_token:
@@ -40,10 +60,12 @@ def notification_queue(doc,method):
     # )
 
 
-@frappe.whitelist()
 def get_fcm_credentials():
     """
     Retrieves FCM credentials from FCM Notification Settings DocType.
+
+    Internal only. Must never be whitelisted: it returns the decrypted service
+    account private key.
     """
     credentials_doc = frappe.get_single("FCM Notification Settings")
     service_account_info = {
@@ -60,15 +82,21 @@ def get_fcm_credentials():
     }
     return service_account_info
 
-@frappe.whitelist()
 def get_cached_access_token():
     """
     Retrieves the cached access token if valid, otherwise generates a new one.
+
+    Internal only. Must never be whitelisted: it returns a live OAuth bearer token.
     """
     try:
         credentials_doc = frappe.get_single("FCM Notification Settings")
-        
-        if credentials_doc.access_token and credentials_doc.expiration_time > now():
+
+        # expiration_time comes back as a str from the Singles cache, and get_datetime("")
+        # returns None - both compare badly against a datetime, so guard on each.
+        expires_at = (
+            get_datetime(credentials_doc.expiration_time) if credentials_doc.expiration_time else None
+        )
+        if credentials_doc.access_token and expires_at and expires_at > now_datetime():
             return {"access_token": credentials_doc.get_password("access_token")}
 
         service_account_info = get_fcm_credentials()
@@ -95,11 +123,11 @@ def get_cached_access_token():
         frappe.log_error(title="FCM Access Token Error", message=f"Error in get_cached_access_token: {str(e)}")
         return {"error": str(e)}
 
-@frappe.whitelist()
 def send_fcm_notification(notification,device_token): #Add device token #add doc method here when implementin notification log with device token
     """
     Sends a push notification using the cached access token.
 
+    Internal only - invoked through frappe.enqueue, never over HTTP.
     """
 
     body = notification.email_content
@@ -145,12 +173,18 @@ def send_fcm_notification(notification,device_token): #Add device token #add doc
     }
 
     fcm_endpoint = f'https://fcm.googleapis.com/v1/projects/{get_fcm_credentials()["project_id"]}/messages:send'
-    response = requests.post(fcm_endpoint, headers=headers, json=payload)
-    
+
+    try:
+        response = requests.post(fcm_endpoint, headers=headers, json=payload, timeout=FCM_TIMEOUT)
+    except requests.RequestException as e:
+        error_message = f"Failed to send notification: {e.__class__.__name__}"
+        frappe.log_error(title="FCM Notification Error", message=error_message)
+        return {"status": "failed", "error": error_message}
+
     if response.status_code == 200:
         return {"status": "success", "response": response.json()}
 
     else:
-        error_message = f"Failed to send notification: {response.text}"
+        error_message = f"Failed to send notification: {fcm_error_summary(response)}"
         frappe.log_error(title="FCM Notification Error", message=error_message)
         return {"status": "failed", "error": error_message}
