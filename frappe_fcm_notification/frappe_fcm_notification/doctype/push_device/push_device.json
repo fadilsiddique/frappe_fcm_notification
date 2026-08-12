@@ -1,0 +1,171 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "hash",
+ "creation": "2026-08-11 00:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "user",
+  "fcm_project",
+  "platform",
+  "column_break_identity",
+  "device_name",
+  "app_version",
+  "locale",
+  "token_section",
+  "token",
+  "token_hash",
+  "device_id",
+  "state_section",
+  "is_active",
+  "last_seen",
+  "column_break_state",
+  "invalidated_on",
+  "invalidation_reason",
+  "subscribed_topics"
+ ],
+ "fields": [
+  {
+   "fieldname": "user",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "User",
+   "options": "User",
+   "search_index": 1
+  },
+  {
+   "fieldname": "fcm_project",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "FCM Project",
+   "options": "FCM Project",
+   "reqd": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "platform",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Platform",
+   "options": "\nandroid\nios\nweb"
+  },
+  {
+   "fieldname": "column_break_identity",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "device_name",
+   "fieldtype": "Data",
+   "label": "Device Name"
+  },
+  {
+   "fieldname": "app_version",
+   "fieldtype": "Data",
+   "label": "App Version"
+  },
+  {
+   "description": "Drives topic derivation, e.g. en, ar",
+   "fieldname": "locale",
+   "fieldtype": "Data",
+   "label": "Locale"
+  },
+  {
+   "fieldname": "token_section",
+   "fieldtype": "Section Break",
+   "label": "Registration"
+  },
+  {
+   "description": "FCM registration token. Treat as a credential: never expose it outside the desk.",
+   "fieldname": "token",
+   "fieldtype": "Small Text",
+   "label": "Token",
+   "reqd": 1
+  },
+  {
+   "description": "sha256 of the token. Carries the unique index, which a text column cannot.",
+   "fieldname": "token_hash",
+   "fieldtype": "Data",
+   "label": "Token Hash",
+   "read_only": 1,
+   "unique": 1
+  },
+  {
+   "description": "Stable per app install. Token rotation updates this row instead of adding one.",
+   "fieldname": "device_id",
+   "fieldtype": "Data",
+   "label": "Device Id"
+  },
+  {
+   "fieldname": "state_section",
+   "fieldtype": "Section Break",
+   "label": "State"
+  },
+  {
+   "default": "1",
+   "fieldname": "is_active",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Is Active"
+  },
+  {
+   "fieldname": "last_seen",
+   "fieldtype": "Datetime",
+   "label": "Last Seen"
+  },
+  {
+   "fieldname": "column_break_state",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "invalidated_on",
+   "fieldtype": "Datetime",
+   "label": "Invalidated On",
+   "read_only": 1
+  },
+  {
+   "description": "FCM error code that retired this token.",
+   "fieldname": "invalidation_reason",
+   "fieldtype": "Data",
+   "label": "Invalidation Reason",
+   "read_only": 1
+  },
+  {
+   "description": "JSON list of topics this device is subscribed to. A cache of what succeeded, not the source of truth.",
+   "fieldname": "subscribed_topics",
+   "fieldtype": "Small Text",
+   "label": "Subscribed Topics",
+   "read_only": 1
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-08-11 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Frappe Fcm Notification",
+ "name": "Push Device",
+ "naming_rule": "Random",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1
+  }
+ ],
+ "search_fields": "user,device_name,platform",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "device_name"
+}

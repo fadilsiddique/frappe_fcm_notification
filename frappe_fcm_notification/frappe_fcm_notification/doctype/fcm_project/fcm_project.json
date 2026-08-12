@@ -1,0 +1,158 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "field:project_name",
+ "creation": "2026-08-11 00:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "project_name",
+  "firebase_project_id",
+  "column_break_config",
+  "is_active",
+  "is_default",
+  "credentials_section",
+  "credentials_source",
+  "service_account_json",
+  "delivery_section",
+  "default_sound",
+  "android_channel_id",
+  "apns_bundle_id",
+  "limits_section",
+  "rate_limit_per_second",
+  "throttle_max_block_sec",
+  "success_sample_rate"
+ ],
+ "fields": [
+  {
+   "fieldname": "project_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Project Name",
+   "reqd": 1,
+   "unique": 1
+  },
+  {
+   "description": "The project_id from the service account JSON, used in the FCM send URL.",
+   "fieldname": "firebase_project_id",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Firebase Project Id",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_config",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "1",
+   "fieldname": "is_active",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Is Active"
+  },
+  {
+   "default": "0",
+   "description": "Used when a send does not name a project. Exactly one project must be the default.",
+   "fieldname": "is_default",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Is Default"
+  },
+  {
+   "fieldname": "credentials_section",
+   "fieldtype": "Section Break",
+   "label": "Credentials"
+  },
+  {
+   "default": "DocType",
+   "description": "Site Config reads site_config.json key fcm_service_account_{project name}, so the key never enters the database.",
+   "fieldname": "credentials_source",
+   "fieldtype": "Select",
+   "label": "Credentials Source",
+   "options": "DocType\nSite Config",
+   "reqd": 1
+  },
+  {
+   "depends_on": "eval:doc.credentials_source == \"DocType\"",
+   "description": "Paste the entire service account JSON file, unmodified.",
+   "fieldname": "service_account_json",
+   "fieldtype": "Password",
+   "label": "Service Account JSON"
+  },
+  {
+   "fieldname": "delivery_section",
+   "fieldtype": "Section Break",
+   "label": "Delivery Defaults"
+  },
+  {
+   "description": "Sound file bundled in the client app, e.g. cash_notification.wav",
+   "fieldname": "default_sound",
+   "fieldtype": "Data",
+   "label": "Default Sound"
+  },
+  {
+   "fieldname": "android_channel_id",
+   "fieldtype": "Data",
+   "label": "Android Channel Id"
+  },
+  {
+   "description": "iOS bundle identifier, sent as the apns-topic header.",
+   "fieldname": "apns_bundle_id",
+   "fieldtype": "Data",
+   "label": "APNS Bundle Id"
+  },
+  {
+   "fieldname": "limits_section",
+   "fieldtype": "Section Break",
+   "label": "Limits"
+  },
+  {
+   "default": "500",
+   "fieldname": "rate_limit_per_second",
+   "fieldtype": "Int",
+   "label": "Rate Limit Per Second"
+  },
+  {
+   "default": "5",
+   "description": "How long a batch worker may wait on the rate limiter before requeueing itself.",
+   "fieldname": "throttle_max_block_sec",
+   "fieldtype": "Int",
+   "label": "Throttle Max Block (sec)"
+  },
+  {
+   "default": "1",
+   "description": "Percentage of successful sends written to Push Delivery Log. Failures are always logged.",
+   "fieldname": "success_sample_rate",
+   "fieldtype": "Percent",
+   "label": "Success Sample Rate"
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-08-11 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Frappe Fcm Notification",
+ "name": "FCM Project",
+ "naming_rule": "By fieldname",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}
