@@ -12,9 +12,17 @@ is recorded in [00-analysis.md](00-analysis.md).
 | | |
 |---|---|
 | **Phase 0 (security hotfix)** | **Shipped** — `v0.1.0`, branch `hotfix/credential-disclosure` |
-| **Milestone 1 (core send path)** | in progress |
+| **Milestone 1 (core send path)** | **Complete** — branch `feat/core-rewrite`, migrated and verified on `drwash` |
 | Milestone 2 (bulk engine) | not started |
 | Milestone 3 (release) | not started |
+
+Two acceptance items from Milestone 1 remain unproven and carry forward:
+
+- `tests/test_push_device.py` has never run under the Frappe test runner (it needs
+  `allow_tests` on a site). Its assertions were verified equivalently by a throwaway
+  script against `drwash` with a rollback, but CI is the real check.
+- The token-mint stampede path — two workers, cold cache, exactly one refresh — is
+  untested, because minting requires real credentials (D7).
 
 ## Why three milestones and not six phases
 
