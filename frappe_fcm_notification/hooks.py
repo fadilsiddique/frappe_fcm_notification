@@ -132,9 +132,21 @@ app_license = "mit"
 
 doc_events = {
     "Notification Log": {
-        "after_insert": "frappe_fcm_notification.fcm_notification.notification_queue"
+        "after_insert": "frappe_fcm_notification.engine.dispatch.on_notification_log"
     }
 }
+
+# Allowlist hooks. Both take dotted paths, and both are hooks rather than doctype fields
+# on purpose: a path that can only come from installed app code cannot be pointed at
+# arbitrary callables by anyone with write access to a document.
+#
+# fcm_project_resolver: fn(doc) -> project name, for sites serving several Firebase
+# projects from one bench. Falls back to the FCM Project flagged is_default.
+fcm_project_resolver = []
+
+# fcm_audience_resolvers: dotted paths permitted as Push Audience "Method" resolvers.
+# Consumed from Milestone 2.
+fcm_audience_resolvers = []
 
 # Scheduled Tasks
 # ---------------
