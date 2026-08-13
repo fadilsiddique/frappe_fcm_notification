@@ -11,18 +11,24 @@ is recorded in [00-analysis.md](00-analysis.md).
 
 | | |
 |---|---|
-| **Phase 0 (security hotfix)** | **Shipped** — `v0.1.0`, branch `hotfix/credential-disclosure` |
-| **Milestone 1 (core send path)** | **Complete** — branch `feat/core-rewrite`, migrated and verified on `drwash` |
-| Milestone 2 (bulk engine) | not started |
-| Milestone 3 (release) | not started |
+| **Phase 0 (security hotfix)** | **Shipped** — `v0.1.0` |
+| **Milestone 1 (core send path)** | **Complete** |
+| **Milestone 2 (bulk engine)** | **Complete** |
+| **Milestone 3 (release)** | **Complete** — `1.0.0` |
 
-Two acceptance items from Milestone 1 remain unproven and carry forward:
+All on `version-16`. 59 tests pass under the Frappe test runner (22 unit, 37
+integration), the AST security gate passes, and `bench migrate` is clean on `drwash`
+with every patch applied.
 
-- `tests/test_push_device.py` has never run under the Frappe test runner (it needs
-  `allow_tests` on a site). Its assertions were verified equivalently by a throwaway
-  script against `drwash` with a rollback, but CI is the real check.
-- The token-mint stampede path — two workers, cold cache, exactly one refresh — is
-  untested, because minting requires real credentials (D7).
+**The one thing still unproven:** no push has ever been delivered to a real device from
+this code. There are no Firebase credentials on this bench (D7), so the transport is
+verified entirely against mocks. Before anyone relies on this in production, point a real
+FCM Project at a dev site and send one notification end to end. Everything else —
+batching arithmetic, retry classification, token invalidation, campaign lifecycle,
+scheduling, HMAC signing — is covered by tests.
+
+Also untested for the same reason: the token-mint stampede path (two workers, cold cache,
+exactly one refresh), because minting requires real credentials.
 
 ## Why three milestones and not six phases
 
@@ -44,9 +50,9 @@ See [00-analysis.md](00-analysis.md) §6 for the full amendment.
 |------|------------|
 | [00-analysis.md](00-analysis.md) | refactor.md vs. real code — per-defect verdicts, new findings, design errors, decisions, greenfield amendment |
 | [01-phase-0-security-hotfix.md](01-phase-0-security-hotfix.md) | **Done.** Credential disclosure fix, shipped as `v0.1.0` |
-| [02-milestone-1-core.md](02-milestone-1-core.md) | `fcm/` package, FCM Project, Push Device, `api/v1` register/send, legacy removal |
-| [03-milestone-2-engine.md](03-milestone-2-engine.md) | Audience, dispatch, throttle, Campaign/Batch/Delivery Log |
-| [04-milestone-3-release.md](04-milestone-3-release.md) | Topics, scheduling, Push API Client, webhooks, migration, docs, CI, 1.0.0 |
+| [02-milestone-1-core.md](02-milestone-1-core.md) | **Done.** `fcm/` package, FCM Project, Push Device, `api/v1` register/send, legacy removal |
+| [03-milestone-2-engine.md](03-milestone-2-engine.md) | **Done.** Audience, dispatch, throttle, Campaign/Batch/Delivery Log |
+| [04-milestone-3-release.md](04-milestone-3-release.md) | **Done.** Topics, scheduling, Push API Client, webhooks, migration, docs, CI, 1.0.0 |
 | [05-doctype-schemas.md](05-doctype-schemas.md) | Corrected doctype schemas — single source of truth for all milestones |
 
 ## Standing constraints (permanent — from refactor.md §12, hardened by Phase 0)

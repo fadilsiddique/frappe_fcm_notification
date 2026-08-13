@@ -1,157 +1,248 @@
+# FCM Notification for Frappe
+
+Push notifications from Frappe/ERPNext through Firebase Cloud Messaging, using the HTTP
+v1 API. Transactional sends, bulk campaigns, topic broadcasts, and a signed API for other
+apps to send through.
+
+Targets **Frappe v16** on **Python 3.14**.
 
 ---
-
-# FCM Notification for Frappe using latest HTTP v1 API
-
-This repository provides integration with Firebase Cloud Messaging (FCM) for sending push notifications from a Frappe/ERPNext instance. The app uses FCM's REST API to send notifications to client devices, leveraging Firebase service account credentials.
 
 ## Features
 
-- **Push Notifications**: Send push notifications to Android and iOS devices using Firebase Cloud Messaging.
-- **Access Token Management**: Automatically fetches and caches access tokens to reduce API calls.
-- **Customizable Notification Settings**: Configurable FCM Notification Settings for managing Firebase service account credentials.
-
----
-
-## Compatibility
-
-This app targets **Frappe version-16** (Python 3.14). It sends notifications to individual
-device tokens registered through the **User Device** DocType.
+- **Transactional push** — a Notification Log insert delivers to that user's devices.
+- **Bulk campaigns** — audiences resolved as generators, split into resumable batches,
+  rate limited per project. A failed batch retries on its own; a killed worker loses one
+  batch, not the campaign.
+- **Topic broadcasts** — one API call regardless of audience size, with subscriptions
+  maintained automatically from platform, locale and role.
+- **Automatic token hygiene** — FCM responses are classified, and tokens that come back
+  `UNREGISTERED` or `SENDER_ID_MISMATCH` deactivate themselves.
+- **Multi-project** — several Firebase projects on one bench, each with its own
+  credentials, sound, channel and rate limit.
+- **Scoped external API** — other apps broadcast through HMAC-signed requests bound to
+  one project and an explicit list of audiences.
 
 ---
 
 ## Installation
 
-### Prerequisites
-
-- Ensure your Frappe/ERPNext (version-16) environment is running.
-
-### Step 1: Clone the Repository
-
-```bash
-cd /path/to/frappe-bench/apps
-git clone https://github.com/fadilsiddique/frappe_fcm_notification.git
-```
-
-### Step 2: Install the App in Your Site
-
 ```bash
 cd /path/to/frappe-bench
-bench install-app frappe_fcm_notification
-```
-
-### Step 3: Apply Changes
-
-```bash
-bench migrate
-bench restart
+bench get-app https://github.com/fadilsiddique/frappe_fcm_notification.git
+bench --site yoursite install-app frappe_fcm_notification
+bench --site yoursite migrate
 ```
 
 ---
 
 ## Configuration
 
-### Step 1: Obtain Service Account Credentials
+### 1. Create an FCM Project
 
-1. In your [Firebase Console](https://console.firebase.google.com/), go to **Project Settings > Service accounts**.
-2. Click **Generate new private key**. This downloads a JSON file containing your service account credentials and firebase admin-sdk credentials.
+In Firebase Console → **Project Settings → Service Accounts → Generate new private key**,
+download the JSON, then create an **FCM Project** in Frappe:
 
-### Step 2: Set Up FCM Notification Settings
+| Field | Value |
+|-------|-------|
+| Project Name | short name, e.g. `default` |
+| Firebase Project Id | `project_id` from the JSON (filled in automatically if left blank) |
+| Credentials Source | `DocType` or `Site Config` |
+| Service Account JSON | **paste the entire file, unmodified** |
+| Default Sound | sound bundled in your client app |
+| Android Channel Id | notification channel |
+| APNS Bundle Id | iOS bundle identifier |
+| Rate Limit Per Second | default 500 |
 
-#### Add Values from `project-name-firebase-adminsdk-8uf66-eagb4660e2.json`
+No field-by-field copying, and no replacing `\n` by hand — the whole JSON goes in one
+field, validated on save.
 
-The app expects FCM Notification Settings values to be filled in with data from admin-sdk json file, the file name should look like `project-name-firebase-adminsdk-8uf66-eagb4660e2.json`. 
-Follow these steps to configure FCM Notification Settings in your Frappe/ERPNext instance:
+**On Frappe Cloud**, prefer `Site Config`: set `credentials_source` to `Site Config` and
+put the JSON in `site_config.json` under `fcm_service_account_<project name>`. The key
+then never enters the database.
 
-1. Go to **Frappe > Settings > FCM Notification Settings** in your Frappe instance.
-2. Populate the following fields using the values from your `service_token.json` file:
+Exactly one project is the default; sends that do not name a project use it.
 
-   - `Project ID`: `"project_id"` from JSON
-   - `Private Key ID`: `"private_key_id"` from JSON
-   - `Private Key`: `"private_key"` from JSON (replace `\\n` with actual newline characters)
-   - `Client Email`: `"client_email"` from JSON
-   - `Client ID`: `"client_id"` from JSON
-   - `Auth URI`: `"auth_uri"` from JSON
-   - `Token URI`: `"token_uri"` from JSON
-   - `Auth Provider X509 Cert URL`: `"auth_provider_x509_cert_url"` from JSON
-   - `Client X509 Cert URL`: `"client_x509_cert_url"` from JSON
+### 2. Register devices
 
-3. Optionally adjust the delivery fields (defaults are applied automatically):
+Devices register themselves through the API, as the logged-in user:
 
-   - `iOS Application Id`: bundle identifier used when importing APNS tokens (default `com.upscape.crm`)
-   - `Notification Sound`: sound played for Android and APNS notifications (default `cash_notification.wav`)
+```
+POST /api/method/frappe_fcm_notification.api.v1.register_device
+{
+  "token": "<FCM registration token>",
+  "platform": "android",       // android | ios | web
+  "device_id": "<stable per install>",
+  "app_version": "2.1.0",
+  "locale": "en"
+}
+```
 
-4. Save the settings.
+Registration is an upsert: the same token, or the same `device_id`, updates the existing
+row instead of adding one. To retire a device:
+
+```
+POST /api/method/frappe_fcm_notification.api.v1.unregister_device
+{"token": "<FCM registration token>"}
+```
+
+> **iOS:** send the token from `messaging().getToken()`. It is already an FCM
+> registration token. Raw APNS tokens are rejected — see [docs/MIGRATION.md](docs/MIGRATION.md).
 
 ---
 
-## Usage
+## Sending
 
-### Sending a Notification
-1. Link your device id to each user using the User Device DocType.
-2. Create a notification in Frappe/ERPNext (https://docs.erpnext.com/docs/user/manual/en/notifications)
-3. Run an event that triggers any notification. The notifcation will be send the respetive user via FCM if they have subscribed to it.
+### Transactional
 
-Sending is triggered by `Notification Log` inserts only. As of 0.1.0 the app exposes
-**no HTTP endpoints** — see [Security](#security).
+Any **Notification Log** row delivers to that user's active devices automatically — no
+code required. From your own app:
 
+```python
+frappe.enqueue(
+    "frappe_fcm_notification.engine.dispatch.send_transactional",
+    queue="short",
+    tokens=tokens,           # <= 50
+    title="Payment received",
+    body="AED 120 for booking BK-0042",
+    data={"doctype": "Sales Invoice", "docname": "SI-0042"},
+)
+```
 
-### Logging and Error Handling
+Or over HTTP, as a System Manager:
+`frappe_fcm_notification.api.v1.send` with `tokens`, `title`, `body`.
 
-- Errors are logged in **Error Logs** in Frappe, allowing you to view and debug any issues that occur during notification sending.
-- Credentials, access tokens, device tokens, and message payloads are not written to the Error Log.
+### Campaigns
 
+1. Create a **Push Audience** — `All`, `Topic`, `Role`, `User Group`, `Report`,
+   `User List`, or `Method`.
+2. Create a **Push Campaign** with a title, body, audience and project, then **submit**
+   it. Submission is the deliberate act that starts delivery.
+3. Watch `status`, `sent_count`, `failed_count` and `invalid_count` on the campaign, and
+   the **Push Batch** rows underneath it.
+
+Set `scheduled_at` to have the scheduler start it later. Cancel the campaign to stop
+fan-out; running batches stop at their next check.
+
+**Audience strategy.** `All`, and anything mapped to a topic, sends as a single topic
+broadcast. Everything else resolves to tokens and fans out into batches of 500. Override
+per audience with `strategy_hint`.
+
+**`Method` audiences** run a dotted path, which must be listed in an installed app's
+`fcm_audience_resolvers` hook:
+
+```python
+# hooks.py of your app
+fcm_audience_resolvers = ["my_app.audiences.lapsed_customers"]
+```
+
+```python
+def lapsed_customers(audience, project):
+    for row in frappe.db.sql("...", as_dict=True):   # yield, never build a list
+        yield row.token
+```
+
+### Topics
+
+Devices are subscribed automatically to `all`, `platform_<platform>`, `lang_<locale>` and
+`role_<role>`. A nightly job reconciles drift. Send to one by creating a `Topic` audience.
+
+---
+
+## Sending from another app
+
+Create a **Push API Client**, which is scoped to one project and to an explicit list of
+audiences. Empty means none.
+
+The caller authenticates to Frappe normally (`Authorization: token <key>:<secret>` on a
+user holding the `Push API Client` role) and signs the request:
+
+| Header | Value |
+|--------|-------|
+| `X-Push-Key` | the client's API key |
+| `X-Push-Timestamp` | unix seconds, within 300s of server time |
+| `X-Push-Signature` | `HMAC-SHA256("{timestamp}.{raw_body}", api_secret)`, hex |
+
+```
+POST /api/method/frappe_fcm_notification.api.v1.broadcast
+{"project": "default", "audience": "All Users", "title": "...", "body": "...",
+ "idempotency_key": "order-123", "callback_url": "https://example.com/hooks/push"}
+
+202 {"campaign_id": "PC-00042", "status": "Queued"}
+```
+
+Poll `frappe_fcm_notification.api.v1.campaign_status` with the returned id, or supply
+`callback_url` and receive a signed completion webhook. Repeating an `idempotency_key`
+returns the original campaign rather than broadcasting twice.
+
+These credentials are **server-to-server only** — never ship them in a mobile app.
+
+---
+
+## Operations
+
+- **Push Delivery Log** records failures in full and a configurable sample of successes
+  (`success_sample_rate`, default 1%). One row per recipient would out-write the sends
+  themselves. Cleared after 30 days by Log Settings.
+- **Rate limiting** is a Redis token bucket per project. A batch that cannot get capacity
+  within `throttle_max_block_sec` requeues itself instead of holding a worker.
+- **Retries** are classified, not blanket: quota and backend errors retry with backoff up
+  to 5 attempts, payload errors never retry, and dead tokens deactivate.
+
+Rough sizing for the token path: 500 tokens × 15 threads ≈ 3s per batch, so 100k
+recipients across 8 workers is around 75 seconds. FCM HTTP v1 has no multicast — that
+throughput is concurrency, which is why topics matter for real broadcasts.
 
 ---
 
 ## Security
 
-### Credential disclosure in versions ≤ 0.0.1 — action required
+The app exposes **no guest endpoints**, and `api/v1.py` is the only module containing
+whitelisted functions. A test walks the AST on every run to keep it that way, and CI fails
+the build otherwise. Device tokens, access tokens, credential objects and FCM response
+bodies are never written to Error Log.
 
-Versions up to and including `0.0.1` exposed the FCM service account over HTTP. Four
-functions were whitelisted, and one of them was reachable without logging in at all, so
-any authenticated user — including a self-registered Website User on an ERPNext site —
-could retrieve the **decrypted service account private key** and a live OAuth bearer
-token, and push arbitrary notifications to any device token.
+### Versions ≤ 0.0.1 — action required
 
-Fixed in `0.1.0`: the app now exposes no whitelisted methods and no guest endpoints.
+Those versions exposed the service account over HTTP: any authenticated user, including a
+self-registered Website User, could retrieve the **decrypted private key** and a live
+OAuth token, and push to any device. Fixed in `0.1.0`.
 
-**Upgrading is not sufficient on its own.** If your site ever ran `0.0.1` or earlier:
+Upgrading is not sufficient on its own. If your site ran `0.0.1` or earlier:
 
-1. **Rotate the Firebase service account key.** Firebase Console → Project Settings →
-   Service Accounts → generate a new private key, update **FCM Notification Settings**,
-   then **delete the old key**. Adding a new key without deleting the old one leaves the
-   exposed key valid.
-2. **Audit IAM** for that service account — it should hold only
-   `roles/firebasemessaging.admin` or narrower. Broader project roles mean the disclosure
-   extended beyond push access.
-3. **Purge Error Log.** Builds before `0.0.1`'s cleanup wrote message payloads, device
-   tokens and the credentials object into Error Log, which every System Manager can read
-   and which is included in support exports.
+1. **Rotate the Firebase service account key** and delete the old one.
+2. **Audit IAM** — the service account should hold only `roles/firebasemessaging.admin`.
+3. **Purge Error Log** — older builds wrote payloads, tokens and credentials into it.
 
-### Reporting
+Report vulnerabilities through a GitHub Security Advisory on this repository, not a public
+issue.
 
-Report vulnerabilities through a GitHub Security Advisory on this repository rather than
-a public issue.
+---
+
+## Upgrading from 0.0.x
+
+`bench migrate` handles it: credentials move from **FCM Notification Settings** into an
+**FCM Project** named `default`, and `User Device` rows become `Push Device` rows. The
+client-side iOS change is the one thing you must do yourself. See
+[docs/MIGRATION.md](docs/MIGRATION.md).
 
 ---
 
 ## Troubleshooting
 
-1. **Invalid Device Token**: Ensure that the device token provided is valid and registered with FCM.
-2. **Authentication Issues**: Verify the `service_token.json` credentials and check that the token URI and other settings in **FCM Notification Settings** match.
-3. **Access Token Expiration**: Access tokens are cached for 55 minutes; however, if tokens expire sooner, revalidate the token cache logic.
+| Symptom | Cause |
+|---------|-------|
+| `No default FCM Project is configured` | No FCM Project row, or none marked default |
+| Devices go inactive right after registering | Tokens are from a different Firebase project (`SENDER_ID_MISMATCH`) — check which app built them |
+| iOS registrations rejected | The client is sending a raw APNS token; switch to `messaging().getToken()` |
+| Campaign stuck at `Running` | Scheduler not running. Batches retry through `run_scheduled_campaigns` (every 5 min) |
+| `FCM message is N bytes, over the 4096 byte limit` | Shrink `data_payload`; the error names the offending field |
+
+Errors are logged as codes, never as response bodies — FCM echoes device tokens back in
+`INVALID_ARGUMENT` responses.
 
 ---
 
 ## License
 
-This project is licensed under the MIT License.
-
---- 
-
-## Contributing
-
-Feel free to submit pull requests and issues. Contributions are welcome!
-
----
+MIT.
