@@ -140,7 +140,7 @@ def deactivate_tokens(tokens: list[str], reason: str = "UNREGISTERED") -> int:
 def get_active_tokens(
 	user: str | None = None,
 	fcm_project: str | None = None,
-	limit_start: int = 0,
+	offset: int = 0,
 	page_length: int = PAGE_LENGTH,
 ) -> list[str]:
 	"""Active tokens only. The old code never filtered this and retried dead tokens forever."""
@@ -155,7 +155,7 @@ def get_active_tokens(
 		filters=filters,
 		pluck="token",
 		order_by="name",
-		limit_start=limit_start,
+		offset=offset,
 		limit_page_length=page_length,
 	)
 
@@ -165,12 +165,12 @@ def iter_active_tokens(fcm_project: str, page_length: int = PAGE_LENGTH):
 
 	A generator, not a list: a 200k-row audience materialised in a worker is an OOM.
 	"""
-	limit_start = 0
+	offset = 0
 	while True:
 		tokens = get_active_tokens(
-			fcm_project=fcm_project, limit_start=limit_start, page_length=page_length
+			fcm_project=fcm_project, offset=offset, page_length=page_length
 		)
 		if not tokens:
 			return
 		yield from tokens
-		limit_start += page_length
+		offset += page_length

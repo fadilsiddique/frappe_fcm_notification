@@ -32,6 +32,16 @@ def python_files():
 		yield path
 
 
+def _dotted(node) -> str:
+	parts = []
+	while isinstance(node, ast.Attribute):
+		parts.append(node.attr)
+		node = node.value
+	if isinstance(node, ast.Name):
+		parts.append(node.id)
+	return ".".join(reversed(parts))
+
+
 def decorator_names(node):
 	"""Every dotted decorator name on a function, e.g. frappe.whitelist."""
 	for decorator in node.decorator_list:
@@ -103,6 +113,29 @@ class TestSecuritySurface(unittest.TestCase):
 			"These functions were the vulnerability and must not be reintroduced: "
 			+ ", ".join(offenders),
 		)
+
+	def test_outbound_http_always_has_a_timeout(self):
+		"""A call without one parks an RQ worker on a hung connection, indefinitely."""
+		http_methods = {"post", "get", "put", "patch", "delete", "request"}
+		offenders = []
+
+		for path in python_files():
+			tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+			for node in ast.walk(tree):
+				if not isinstance(node, ast.Call):
+					continue
+
+				name = _dotted(node.func)
+				head, _, method = name.rpartition(".")
+				if method not in http_methods:
+					continue
+				if not (head.endswith("requests") or head.endswith("session")):
+					continue
+
+				if not any(keyword.arg == "timeout" for keyword in node.keywords):
+					offenders.append(f"{path.relative_to(APP_ROOT)}:{node.lineno} {name}")
+
+		self.assertEqual(offenders, [], "outbound HTTP without a timeout: " + ", ".join(offenders))
 
 	def test_api_v1_endpoints_are_authenticated(self):
 		"""Every whitelisted function in api/v1.py must be reachable only when logged in."""

@@ -1,22 +1,33 @@
-
 name: CI
 
 on:
   push:
     branches:
-      - develop
+      - main
+      - version-16
   pull_request:
 
 concurrency:
-  group: develop-frappe_fcm_notification-${{ github.event.number }}
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
+  security:
+    runs-on: ubuntu-latest
+    name: Security surface
+    steps:
+      - uses: actions/checkout@v4
+
+      # The credential disclosure fixed in 0.1.0 was four whitelisted functions and one
+      # guest endpoint. This gate parses the AST and fails the build before the suite is
+      # even installed.
+      - name: Check security surface
+        run: python3 .github/scripts/check_security_surface.py
+
   tests:
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
     name: Server
+    needs: security
 
     services:
       redis-cache:
@@ -37,26 +48,21 @@ jobs:
 
     steps:
       - name: Clone
-        uses: actions/checkout@v3
-
-      - name: Find tests
-        run: |
-          echo "Finding tests"
-          grep -rn "def test" > /dev/null
+        uses: actions/checkout@v4
 
       - name: Setup Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: '3.14'
 
       - name: Setup Node
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version: 24
           check-latest: true
 
       - name: Cache pip
-        uses: actions/cache@v2
+        uses: actions/cache@v4
         with:
           path: ~/.cache/pip
           key: ${{ runner.os }}-pip-${{ hashFiles('**/*requirements.txt', '**/pyproject.toml', '**/setup.py', '**/setup.cfg') }}
@@ -68,7 +74,7 @@ jobs:
         id: yarn-cache-dir-path
         run: 'echo "dir=$(yarn cache dir)" >> $GITHUB_OUTPUT'
 
-      - uses: actions/cache@v3
+      - uses: actions/cache@v4
         id: yarn-cache
         with:
           path: ${{ steps.yarn-cache-dir-path.outputs.dir }}
@@ -97,10 +103,18 @@ jobs:
         env:
           CI: 'Yes'
 
-      - name: Run Tests
+      - name: Run unit tests
         working-directory: /home/runner/frappe-bench
         run: |
           bench --site test_site set-config allow_tests true
           bench --site test_site run-tests --app frappe_fcm_notification
+        env:
+          TYPE: server
+
+      # Integration tests are a separate category and are not picked up by the default
+      # invocation, so they are requested explicitly.
+      - name: Run integration tests
+        working-directory: /home/runner/frappe-bench
+        run: bench --site test_site run-tests --app frappe_fcm_notification --test-category integration
         env:
           TYPE: server
