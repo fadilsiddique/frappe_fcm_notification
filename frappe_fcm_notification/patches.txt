@@ -5,5 +5,8 @@
 [post_model_sync]
 # Patches added in this section will be executed after doctypes are migrated
 frappe_fcm_notification.patches.v0_0_1.set_default_fcm_config
+frappe_fcm_notification.patches.v1_0.create_default_fcm_project
 frappe_fcm_notification.patches.v1_0.add_push_device_indexes
+frappe_fcm_notification.patches.v1_0.migrate_user_device_to_push_device
+frappe_fcm_notification.patches.v1_0.clear_legacy_token_cache
 frappe_fcm_notification.patches.v1_0.drop_user_device
