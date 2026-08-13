@@ -13,6 +13,7 @@ import frappe
 from frappe import _
 from frappe.rate_limiter import rate_limit
 
+from frappe_fcm_notification.api.auth import assert_can_use, require_api_client
 from frappe_fcm_notification.engine.dispatch import MAX_TRANSACTIONAL_TOKENS, send_transactional
 from frappe_fcm_notification.frappe_fcm_notification.doctype.push_device.push_device import (
 	deactivate_tokens,
@@ -107,3 +108,73 @@ def send(
 	return send_transactional(
 		tokens=tokens, title=title, body=body, data=data, project=project
 	)
+
+
+@frappe.whitelist()
+@require_api_client
+def broadcast(
+	project: str,
+	audience: str,
+	title: str,
+	body: str,
+	data: dict | None = None,
+	scheduled_at: str | None = None,
+	idempotency_key: str | None = None,
+	callback_url: str | None = None,
+	api_client=None,
+):
+	"""Queue a campaign. Returns immediately - a broadcast is never synchronous."""
+	assert_can_use(api_client, project=project, audience=audience)
+
+	if idempotency_key:
+		existing = frappe.db.get_value(
+			"Push Campaign", {"idempotency_key": idempotency_key}, "name"
+		)
+		if existing:
+			# A retried request must not produce a second broadcast.
+			return {"campaign_id": existing, "duplicate": True}
+
+	if isinstance(data, str):
+		data = frappe.parse_json(data)
+
+	campaign = frappe.get_doc(
+		{
+			"doctype": "Push Campaign",
+			"title": title,
+			"body": body,
+			"fcm_project": project,
+			"audience": audience,
+			"data_payload": frappe.as_json(data) if data else None,
+			"scheduled_at": scheduled_at,
+			"idempotency_key": idempotency_key,
+			"callback_url": callback_url,
+			"api_client": api_client.name,
+		}
+	)
+	campaign.insert(ignore_permissions=True)
+	campaign.submit()
+
+	frappe.local.response.http_status_code = 202
+	return {"campaign_id": campaign.name, "status": campaign.status}
+
+
+@frappe.whitelist()
+@require_api_client
+def campaign_status(campaign_id: str, api_client=None):
+	"""Progress for one campaign. Counters only - never tokens or recipients."""
+	campaign = frappe.get_doc("Push Campaign", campaign_id)
+
+	if campaign.api_client != api_client.name:
+		raise frappe.PermissionError
+
+	return {
+		"campaign_id": campaign.name,
+		"status": campaign.status,
+		"strategy": campaign.strategy,
+		"total_recipients": campaign.total_recipients,
+		"sent_count": campaign.sent_count,
+		"failed_count": campaign.failed_count,
+		"invalid_count": campaign.invalid_count,
+		"started_at": campaign.started_at,
+		"completed_at": campaign.completed_at,
+	}
