@@ -1,0 +1,246 @@
+{
+ "actions": [],
+ "autoname": "PC-.#####",
+ "creation": "2026-08-13 00:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "title",
+  "body",
+  "column_break_head",
+  "fcm_project",
+  "audience",
+  "scheduled_at",
+  "content_section",
+  "image_url",
+  "deep_link",
+  "data_payload",
+  "state_section",
+  "status",
+  "strategy",
+  "total_recipients",
+  "column_break_state",
+  "sent_count",
+  "failed_count",
+  "invalid_count",
+  "timing_section",
+  "started_at",
+  "completed_at",
+  "error_message",
+  "integration_section",
+  "idempotency_key",
+  "api_client",
+  "callback_url",
+  "amended_from"
+ ],
+ "fields": [
+  {
+   "fieldname": "title",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Title",
+   "reqd": 1
+  },
+  {
+   "fieldname": "body",
+   "fieldtype": "Text",
+   "label": "Body",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_head",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "fcm_project",
+   "fieldtype": "Link",
+   "label": "FCM Project",
+   "options": "FCM Project",
+   "reqd": 1
+  },
+  {
+   "fieldname": "audience",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Audience",
+   "options": "Push Audience",
+   "reqd": 1
+  },
+  {
+   "description": "Leave blank to send as soon as the campaign is submitted.",
+   "fieldname": "scheduled_at",
+   "fieldtype": "Datetime",
+   "label": "Scheduled At"
+  },
+  {
+   "fieldname": "content_section",
+   "fieldtype": "Section Break",
+   "label": "Content"
+  },
+  {
+   "fieldname": "image_url",
+   "fieldtype": "Data",
+   "label": "Image URL"
+  },
+  {
+   "fieldname": "deep_link",
+   "fieldtype": "Data",
+   "label": "Deep Link"
+  },
+  {
+   "description": "Extra data keys sent to the client. All values are coerced to strings.",
+   "fieldname": "data_payload",
+   "fieldtype": "JSON",
+   "label": "Data Payload"
+  },
+  {
+   "fieldname": "state_section",
+   "fieldtype": "Section Break",
+   "label": "Progress"
+  },
+  {
+   "allow_on_submit": 1,
+   "default": "Draft",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Status",
+   "options": "Draft\nQueued\nRunning\nCompleted\nFailed\nCancelled",
+   "read_only": 1
+  },
+  {
+   "allow_on_submit": 1,
+   "fieldname": "strategy",
+   "fieldtype": "Select",
+   "label": "Strategy",
+   "options": "\nTopic\nToken",
+   "read_only": 1
+  },
+  {
+   "allow_on_submit": 1,
+   "fieldname": "total_recipients",
+   "fieldtype": "Int",
+   "label": "Total Recipients",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_state",
+   "fieldtype": "Column Break"
+  },
+  {
+   "allow_on_submit": 1,
+   "fieldname": "sent_count",
+   "fieldtype": "Int",
+   "in_list_view": 1,
+   "label": "Sent",
+   "read_only": 1
+  },
+  {
+   "allow_on_submit": 1,
+   "fieldname": "failed_count",
+   "fieldtype": "Int",
+   "label": "Failed",
+   "read_only": 1
+  },
+  {
+   "allow_on_submit": 1,
+   "fieldname": "invalid_count",
+   "fieldtype": "Int",
+   "label": "Invalid",
+   "read_only": 1
+  },
+  {
+   "fieldname": "timing_section",
+   "fieldtype": "Section Break",
+   "label": "Timing"
+  },
+  {
+   "allow_on_submit": 1,
+   "fieldname": "started_at",
+   "fieldtype": "Datetime",
+   "label": "Started At",
+   "read_only": 1
+  },
+  {
+   "allow_on_submit": 1,
+   "fieldname": "completed_at",
+   "fieldtype": "Datetime",
+   "label": "Completed At",
+   "read_only": 1
+  },
+  {
+   "allow_on_submit": 1,
+   "fieldname": "error_message",
+   "fieldtype": "Small Text",
+   "label": "Error Message",
+   "read_only": 1
+  },
+  {
+   "fieldname": "integration_section",
+   "fieldtype": "Section Break",
+   "label": "Integration"
+  },
+  {
+   "description": "Caller-supplied key. A repeated key returns the existing campaign instead of creating a second one.",
+   "fieldname": "idempotency_key",
+   "fieldtype": "Data",
+   "label": "Idempotency Key",
+   "unique": 1
+  },
+  {
+   "fieldname": "api_client",
+   "fieldtype": "Link",
+   "label": "API Client",
+   "options": "Push API Client",
+   "read_only": 1
+  },
+  {
+   "description": "HTTPS endpoint notified when the campaign finishes. Signed with the API client secret.",
+   "fieldname": "callback_url",
+   "fieldtype": "Data",
+   "label": "Callback URL"
+  },
+  {
+   "fieldname": "amended_from",
+   "fieldtype": "Link",
+   "label": "Amended From",
+   "no_copy": 1,
+   "options": "Push Campaign",
+   "print_hide": 1,
+   "read_only": 1,
+   "search_index": 1
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "is_submittable": 1,
+ "links": [],
+ "modified": "2026-08-13 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Frappe Fcm Notification",
+ "name": "Push Campaign",
+ "naming_rule": "Expression (old style)",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "cancel": 1,
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "submit": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "title",
+ "track_changes": 1
+}

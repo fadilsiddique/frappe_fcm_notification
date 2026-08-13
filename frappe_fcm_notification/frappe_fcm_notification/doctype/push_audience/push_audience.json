@@ -1,0 +1,149 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "field:audience_name",
+ "creation": "2026-08-13 00:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "audience_name",
+  "audience_type",
+  "column_break_head",
+  "fcm_project",
+  "strategy_hint",
+  "is_active",
+  "selector_section",
+  "topic",
+  "role",
+  "user_group",
+  "report",
+  "resolver_method",
+  "users_section",
+  "users"
+ ],
+ "fields": [
+  {
+   "fieldname": "audience_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Audience Name",
+   "reqd": 1,
+   "unique": 1
+  },
+  {
+   "fieldname": "audience_type",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Audience Type",
+   "options": "All\nTopic\nRole\nUser Group\nReport\nUser List\nMethod",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_head",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "fcm_project",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "FCM Project",
+   "options": "FCM Project",
+   "reqd": 1
+  },
+  {
+   "default": "Auto",
+   "description": "Auto sends through a topic when the audience maps to one, and through tokens otherwise.",
+   "fieldname": "strategy_hint",
+   "fieldtype": "Select",
+   "label": "Strategy Hint",
+   "options": "Auto\nForce Topic\nForce Token"
+  },
+  {
+   "default": "1",
+   "fieldname": "is_active",
+   "fieldtype": "Check",
+   "label": "Is Active"
+  },
+  {
+   "fieldname": "selector_section",
+   "fieldtype": "Section Break",
+   "label": "Selector"
+  },
+  {
+   "depends_on": "eval:doc.audience_type == \"Topic\"",
+   "description": "FCM topic name. Allowed characters: a-z A-Z 0-9 - _ . ~ %",
+   "fieldname": "topic",
+   "fieldtype": "Data",
+   "label": "Topic"
+  },
+  {
+   "depends_on": "eval:doc.audience_type == \"Role\"",
+   "fieldname": "role",
+   "fieldtype": "Link",
+   "label": "Role",
+   "options": "Role"
+  },
+  {
+   "depends_on": "eval:doc.audience_type == \"User Group\"",
+   "fieldname": "user_group",
+   "fieldtype": "Link",
+   "label": "User Group",
+   "options": "User Group"
+  },
+  {
+   "depends_on": "eval:doc.audience_type == \"Report\"",
+   "description": "Query Report returning a user or token column.",
+   "fieldname": "report",
+   "fieldtype": "Link",
+   "label": "Report",
+   "options": "Report"
+  },
+  {
+   "depends_on": "eval:doc.audience_type == \"Method\"",
+   "description": "Dotted path, which must be listed in the fcm_audience_resolvers hook of an installed app.",
+   "fieldname": "resolver_method",
+   "fieldtype": "Data",
+   "label": "Resolver Method"
+  },
+  {
+   "depends_on": "eval:doc.audience_type == \"User List\"",
+   "fieldname": "users_section",
+   "fieldtype": "Section Break",
+   "label": "Users"
+  },
+  {
+   "fieldname": "users",
+   "fieldtype": "Table MultiSelect",
+   "label": "Users",
+   "options": "Push Audience User"
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-08-13 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Frappe Fcm Notification",
+ "name": "Push Audience",
+ "naming_rule": "By fieldname",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}
