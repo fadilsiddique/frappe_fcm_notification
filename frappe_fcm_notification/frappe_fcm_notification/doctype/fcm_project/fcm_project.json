@@ -20,6 +20,7 @@
   "android_channel_id",
   "apns_bundle_id",
   "limits_section",
+  "auto_subscribe_topics",
   "rate_limit_per_second",
   "throttle_max_block_sec",
   "success_sample_rate"
@@ -107,6 +108,13 @@
    "fieldname": "limits_section",
    "fieldtype": "Section Break",
    "label": "Limits"
+  },
+  {
+   "default": "1",
+   "description": "Subscribe devices to derived topics (all, platform, language, role) as they register.",
+   "fieldname": "auto_subscribe_topics",
+   "fieldtype": "Check",
+   "label": "Auto Subscribe Topics"
   },
   {
    "default": "500",

@@ -133,8 +133,29 @@ app_license = "mit"
 doc_events = {
     "Notification Log": {
         "after_insert": "frappe_fcm_notification.engine.dispatch.on_notification_log"
-    }
+    },
+    "Push Device": {
+        "after_insert": "frappe_fcm_notification.engine.topics.enqueue_device_sync",
+        "on_update": "frappe_fcm_notification.engine.topics.enqueue_device_sync",
+    },
 }
+
+scheduler_events = {
+    "cron": {
+        # Starts due campaigns, requeues batches waiting on a retry, and buries
+        # campaigns that have been Running too long to recover.
+        "*/5 * * * *": ["frappe_fcm_notification.engine.dispatch.run_scheduled_campaigns"]
+    },
+    "daily_long": [
+        # Topic subscriptions drift: calls fail silently and roles change. The device
+        # row records what we believe, this repairs what is actually true.
+        "frappe_fcm_notification.engine.topics.reconcile_topics"
+    ],
+}
+
+# Delivery logs are diagnostics, not records. Failures and a small success sample only,
+# cleared on the standard Log Settings schedule.
+default_log_clearing_doctypes = {"Push Delivery Log": 30}
 
 # Allowlist hooks. Both take dotted paths, and both are hooks rather than doctype fields
 # on purpose: a path that can only come from installed app code cannot be pointed at

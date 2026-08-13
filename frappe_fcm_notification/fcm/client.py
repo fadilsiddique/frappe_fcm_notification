@@ -24,9 +24,13 @@ from frappe_fcm_notification.fcm.credentials import (
 from frappe_fcm_notification.fcm.errors import Action, classify
 
 FCM_ENDPOINT = "https://fcm.googleapis.com/v1/projects/{project_id}/messages:send"
+TOPIC_ENDPOINT = "https://iid.googleapis.com/iid/v1"
 
 # Beyond this, the bottleneck is FCM's own per-connection throughput rather than us.
 DEFAULT_MAX_WORKERS = 15
+
+# Batch topic management accepts 1000 tokens per call.
+TOPIC_CHUNK = 1000
 
 
 class FCMClient:
@@ -71,6 +75,45 @@ class FCMClient:
 
 		with ThreadPoolExecutor(max_workers=min(max_workers, len(messages))) as pool:
 			return list(pool.map(self.send, messages))
+
+
+	def subscribe_topic(self, tokens: list[str], topic: str) -> bool:
+		return self._topic_call("batchAdd", tokens, topic)
+
+	def unsubscribe_topic(self, tokens: list[str], topic: str) -> bool:
+		return self._topic_call("batchRemove", tokens, topic)
+
+	def _topic_call(self, operation: str, tokens: list[str], topic: str) -> bool:
+		"""Batch topic management, 1000 tokens per call.
+
+		This is the same host as the retired batchImport endpoint, but a different and
+		still-supported operation. Check Google's current guidance before extending it -
+		shipping against a dead endpoint is how the old iOS conversion path rotted.
+		"""
+		tokens = [t for t in tokens if t]
+		if not tokens:
+			return True
+
+		ok = True
+		for start in range(0, len(tokens), TOPIC_CHUNK):
+			chunk = tokens[start : start + TOPIC_CHUNK]
+			try:
+				response = self.session.post(
+					f"{TOPIC_ENDPOINT}:{operation}",
+					json={"to": f"/topics/{topic}", "registration_tokens": chunk},
+					headers={"access_token_auth": "true"},
+					timeout=FCM_TIMEOUT,
+				)
+			except requests.RequestException as e:
+				log_failure(f"topic {operation} {topic}", e.__class__.__name__)
+				ok = False
+				continue
+
+			if response.status_code >= 400:
+				log_failure(f"topic {operation} {topic}", "REQUEST_FAILED", response.status_code)
+				ok = False
+
+		return ok
 
 
 def _safe_json(response) -> dict:
