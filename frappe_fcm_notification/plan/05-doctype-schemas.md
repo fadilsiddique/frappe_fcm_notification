@@ -16,7 +16,15 @@ All doctypes live in module **Frappe Fcm Notification**, under
 | `project_name` | Data | reqd, unique (autoname), e.g. `yallawash` |
 | `firebase_project_id` | Data | reqd — used in the send URL |
 | `credentials_source` | Select | `DocType` / `Site Config`, default `DocType` |
-| `service_account_json` | Password | the **entire** JSON in one field. Nine separate fields caused the `\n` escaping problem the README has to warn about. `__Auth.password` is `TEXT`, so ~2.5 KB fits |
+| `service_account_file` | Attach | **primary input.** The .json as downloaded from Firebase. Read on validate, then deleted — a key in `/private/files` is a plaintext credential on disk |
+| `service_account_paste` | Code (JSON) | fallback input, multi-line. Cleared in `validate` before the row is written, so it never reaches the table |
+| `credentials_summary` | Data, read-only | client email + key id, so an admin can tell which key is installed without revealing it |
+| `service_account_json` | Password, hidden | the encrypted store — Password fields live in `__Auth`, not in the doctype table. Written by the controller, never typed into. `__Auth.password` is `TEXT`, so ~2.5 KB fits |
+
+**Why not a single Password field for input** (as originally specified): Password renders
+as a one-line `<input type="password">`. A 2.4 KB multi-line JSON cannot be reviewed in
+it, and pasting one depends on how the browser mangles newlines. Encryption and a usable
+input are separate problems and need separate fields.
 | `default_sound` | Data | replaces the hardcoded `cash_notification.wav` (C14) |
 | `android_channel_id` | Data | |
 | `apns_bundle_id` | Data | replaces the hardcoded `com.upscape.crm` (C14) |

@@ -13,7 +13,7 @@ holds your **decrypted service account private key**, and upgrading does not tak
 back.
 
 1. Firebase Console → Project Settings → Service Accounts → **Generate new private key**.
-2. Paste the new JSON into your **FCM Project**.
+2. Upload the new JSON to your **FCM Project** (or paste it into the paste field).
 3. **Delete the old key.** Adding a new one without deleting the old leaves the exposed
    key valid.
 4. Check IAM: the service account should hold only `roles/firebasemessaging.admin`, or

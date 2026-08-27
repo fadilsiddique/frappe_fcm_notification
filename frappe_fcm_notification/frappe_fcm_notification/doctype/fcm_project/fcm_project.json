@@ -14,6 +14,9 @@
   "is_default",
   "credentials_section",
   "credentials_source",
+  "service_account_file",
+  "service_account_paste",
+  "credentials_summary",
   "service_account_json",
   "delivery_section",
   "default_sound",
@@ -68,7 +71,7 @@
   },
   {
    "default": "DocType",
-   "description": "Site Config reads site_config.json key fcm_service_account_{project name}, so the key never enters the database.",
+   "description": "Site Config reads site_config.json key fcm_service_account_{project name}, so the key never touches the database. Preferred on Frappe Cloud.",
    "fieldname": "credentials_source",
    "fieldtype": "Select",
    "label": "Credentials Source",
@@ -77,10 +80,36 @@
   },
   {
    "depends_on": "eval:doc.credentials_source == \"DocType\"",
-   "description": "Paste the entire service account JSON file, unmodified.",
+   "description": "Upload the JSON downloaded from Firebase Console. It is read, encrypted and the uploaded file is then deleted.",
+   "fieldname": "service_account_file",
+   "fieldtype": "Attach",
+   "label": "Upload Service Account JSON",
+   "no_copy": 1
+  },
+  {
+   "depends_on": "eval:doc.credentials_source == \"DocType\"",
+   "description": "Alternative to uploading. Cleared on save - the value is encrypted before it is written, so it is never stored here.",
+   "fieldname": "service_account_paste",
+   "fieldtype": "Code",
+   "label": "…or paste the JSON here",
+   "no_copy": 1,
+   "options": "JSON"
+  },
+  {
+   "depends_on": "eval:doc.credentials_source == \"DocType\"",
+   "description": "Which key is currently stored. Shown so the credential can be identified without revealing it.",
+   "fieldname": "credentials_summary",
+   "fieldtype": "Data",
+   "label": "Stored Credential",
+   "no_copy": 1,
+   "read_only": 1
+  },
+  {
    "fieldname": "service_account_json",
    "fieldtype": "Password",
-   "label": "Service Account JSON"
+   "hidden": 1,
+   "label": "Service Account JSON (encrypted)",
+   "no_copy": 1
   },
   {
    "fieldname": "delivery_section",

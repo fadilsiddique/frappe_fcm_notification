@@ -48,14 +48,20 @@ download the JSON, then create an **FCM Project** in Frappe:
 | Project Name | short name, e.g. `default` |
 | Firebase Project Id | `project_id` from the JSON (filled in automatically if left blank) |
 | Credentials Source | `DocType` or `Site Config` |
-| Service Account JSON | **paste the entire file, unmodified** |
+| Upload Service Account JSON | **the .json file you just downloaded** |
 | Default Sound | sound bundled in your client app |
 | Android Channel Id | notification channel |
 | APNS Bundle Id | iOS bundle identifier |
 | Rate Limit Per Second | default 500 |
 
-No field-by-field copying, and no replacing `\n` by hand — the whole JSON goes in one
-field, validated on save.
+Upload the file as it came from Firebase — no field-by-field copying, no replacing `\n`
+by hand. It is validated on save, encrypted into Frappe's `__Auth` table, and the uploaded
+file is deleted so no plaintext key is left on disk. **Stored Credential** then shows which
+key is installed (client email and key id) without revealing it.
+
+If uploading is inconvenient, paste the JSON into **…or paste the JSON here** instead.
+That field is cleared before the row is written, so the key is never stored in the
+`FCM Project` table itself.
 
 **On Frappe Cloud**, prefer `Site Config`: set `credentials_source` to `Site Config` and
 put the JSON in `site_config.json` under `fcm_service_account_<project name>`. The key
