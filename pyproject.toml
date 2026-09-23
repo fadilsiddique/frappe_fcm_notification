@@ -16,6 +16,15 @@ dependencies = [
 requires = ["flit_core >=3.4,<4"]
 build-backend = "flit_core.buildapi"
 
+# Frappe apps this app needs at runtime. bench validates the installed versions
+# against these on get-app and warns when they drift.
+#
+# Use SimpleSpec syntax (semantic_version), NOT PEP 440: bench evaluates these through
+# semantic_version.SimpleSpec, where "~=16.0.0" means "16.0.x" and would therefore
+# *reject* a perfectly good 16.18.x install.
+[tool.bench.frappe-dependencies]
+frappe = ">=16.0.0"
+
 # These dependencies are only installed when developer mode is enabled
 [tool.bench.dev-dependencies]
 # package_name = "~=1.1.0"
