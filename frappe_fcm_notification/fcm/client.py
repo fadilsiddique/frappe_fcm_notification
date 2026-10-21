@@ -10,6 +10,7 @@ real broadcasts.
 """
 
 from concurrent.futures import ThreadPoolExecutor
+from functools import partial
 
 import frappe
 import requests
@@ -43,25 +44,9 @@ class FCMClient:
 	def session(self):
 		return get_authorized_session(self.project)
 
-	def send(self, message: dict, _refreshed: bool = False) -> tuple[Action, str, float]:
+	def send(self, message: dict) -> tuple[Action, str, float]:
 		"""Send one message. Returns (action, error_code, retry_after_sec)."""
-		try:
-			response = self.session.post(
-				self.endpoint, json={"message": message}, timeout=FCM_TIMEOUT
-			)
-		except requests.RequestException as e:
-			# A timeout or a dropped connection says nothing about the message itself.
-			return Action.RETRY, e.__class__.__name__, 0.0
-
-		action, code, retry_after = classify(response.status_code, _safe_json(response), response.headers)
-
-		if action == Action.RETRY and response.status_code in (401, 403) and not _refreshed:
-			# Stale credentials in this process. Drop them and try once more before
-			# handing a retry back to the caller.
-			invalidate(self.project)
-			return self.send(message, _refreshed=True)
-
-		return action, code, retry_after
+		return self.send_many([message])[0]
 
 	def send_many(
 		self, messages: list[dict], max_workers: int = DEFAULT_MAX_WORKERS
@@ -70,11 +55,39 @@ class FCMClient:
 		if not messages:
 			return []
 
+		responses = self._post_all(messages, max_workers)
+		results = [_classify_response(r) for r in responses]
+
+		stale = [
+			i
+			for i, (response, (action, _code, _retry_after)) in enumerate(zip(responses, results, strict=True))
+			if action == Action.RETRY and getattr(response, "status_code", None) in (401, 403)
+		]
+		if stale:
+			# Stale credentials in this process. Drop them and try those once more before
+			# handing a retry back to the caller.
+			invalidate(self.project)
+			retried = self._post_all([messages[i] for i in stale], max_workers)
+			for i, response in zip(stale, retried, strict=True):
+				results[i] = _classify_response(response)
+
+		return results
+
+	def _post_all(self, messages: list[dict], max_workers: int) -> list:
+		"""POST each message, in order. Pool threads only ever do the HTTP call.
+
+		frappe.local is a ContextVar, and pool threads start with an empty context - any
+		frappe.cache / frappe.db / frappe.utils call in there raises AttributeError: conf.
+		So the session is resolved here, and classification and invalidation happen back
+		on the caller's thread.
+		"""
+		post = partial(_post, self.session, self.endpoint)
+
 		if len(messages) == 1:
-			return [self.send(messages[0])]
+			return [post(messages[0])]
 
 		with ThreadPoolExecutor(max_workers=min(max_workers, len(messages))) as pool:
-			return list(pool.map(self.send, messages))
+			return list(pool.map(post, messages))
 
 
 	def subscribe_topic(self, tokens: list[str], topic: str) -> bool:
@@ -114,6 +127,22 @@ class FCMClient:
 				ok = False
 
 		return ok
+
+
+def _post(session, endpoint: str, message: dict):
+	"""Runs on pool threads: no Frappe calls allowed. Returns the response or the error."""
+	try:
+		return session.post(endpoint, json={"message": message}, timeout=FCM_TIMEOUT)
+	except requests.RequestException as e:
+		return e
+
+
+def _classify_response(response) -> tuple[Action, str, float]:
+	if isinstance(response, requests.RequestException):
+		# A timeout or a dropped connection says nothing about the message itself.
+		return Action.RETRY, response.__class__.__name__, 0.0
+
+	return classify(response.status_code, _safe_json(response), response.headers)
 
 
 def _safe_json(response) -> dict:

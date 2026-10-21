@@ -10,29 +10,23 @@ import frappe
 from frappe.tests import IntegrationTestCase
 
 from frappe_fcm_notification.engine.dispatch import BATCH_SIZE, dispatch_campaign, process_batch
-from frappe_fcm_notification.fcm.errors import Action
 from frappe_fcm_notification.frappe_fcm_notification.doctype.push_device.push_device import (
 	upsert_device,
 )
+from frappe_fcm_notification.tests.fake_fcm import error, fake_fcm, ok
 
 TEST_PROJECT = "_test_dispatch_project"
 TEST_AUDIENCE = "_test_dispatch_audience"
 
-SEND_PATH = "frappe_fcm_notification.fcm.client.FCMClient.send"
 
-
-def ok_send(self, message, _refreshed=False):
-	return Action.OK, "", 0.0
-
-
-def unregistered_send(self, message, _refreshed=False):
+def unregistered(message):
 	if message["token"] == "disp-dead":
-		return Action.DROP_TOKEN, "UNREGISTERED", 0.0
-	return Action.OK, "", 0.0
+		return error(404, "NOT_FOUND", "UNREGISTERED")
+	return ok()
 
 
-def throttled_send(self, message, _refreshed=False):
-	return Action.RETRY, "QUOTA_EXCEEDED", 30.0
+def throttled(message):
+	return error(429, "RESOURCE_EXHAUSTED", "QUOTA_EXCEEDED", {"Retry-After": "30"})
 
 
 class TestDispatch(IntegrationTestCase):
@@ -117,7 +111,7 @@ class TestDispatch(IntegrationTestCase):
 		campaign = self.make_campaign()
 		batch = self.make_batch(campaign, ["disp-dead", "disp-alive"])
 
-		with patch(SEND_PATH, unregistered_send):
+		with fake_fcm(unregistered):
 			process_batch(batch.name)
 
 		batch.reload()
@@ -131,7 +125,7 @@ class TestDispatch(IntegrationTestCase):
 		campaign = self.make_campaign()
 		batch = self.make_batch(campaign, ["disp-throttled"])
 
-		with patch(SEND_PATH, throttled_send):
+		with fake_fcm(throttled):
 			process_batch(batch.name)
 
 		batch.reload()
@@ -144,12 +138,12 @@ class TestDispatch(IntegrationTestCase):
 		campaign = self.make_campaign()
 		batch = self.make_batch(campaign, ["disp-ok", "disp-retry"])
 
-		def mixed(self, message, _refreshed=False):
+		def mixed(message):
 			if message["token"] == "disp-retry":
-				return Action.RETRY, "UNAVAILABLE", 0.0
-			return Action.OK, "", 0.0
+				return error(503, "UNAVAILABLE", "UNAVAILABLE")
+			return ok()
 
-		with patch(SEND_PATH, mixed):
+		with fake_fcm(mixed):
 			process_batch(batch.name)
 
 		batch.reload()
@@ -160,7 +154,7 @@ class TestDispatch(IntegrationTestCase):
 		batch = self.make_batch(campaign, ["disp-cancelled"])
 		campaign.db_set("status", "Cancelled", update_modified=False)
 
-		with patch(SEND_PATH, ok_send):
+		with fake_fcm(ok):
 			process_batch(batch.name)
 
 		batch.reload()
@@ -172,7 +166,7 @@ class TestDispatch(IntegrationTestCase):
 		campaign.db_set("status", "Running", update_modified=False)
 		batch = self.make_batch(campaign, ["disp-final"])
 
-		with patch(SEND_PATH, ok_send):
+		with fake_fcm(ok):
 			process_batch(batch.name)
 
 		campaign.reload()
@@ -208,7 +202,7 @@ class TestDispatch(IntegrationTestCase):
 		upsert_device(token="disp-dead", fcm_project=TEST_PROJECT)
 		upsert_device(token="disp-alive", fcm_project=TEST_PROJECT)
 
-		with patch(SEND_PATH, unregistered_send):
+		with fake_fcm(unregistered):
 			process_batch(batch.name)
 
 		logs = frappe.get_all(
