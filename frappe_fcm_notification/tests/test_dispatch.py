@@ -195,6 +195,37 @@ class TestDispatch(IntegrationTestCase):
 		self.assertFalse(second)
 		self.assertEqual(campaign.reload().status, "Running")
 
+	def test_notification_log_prefers_title_and_description(self):
+		"""Newer v16 System Notifications put the real text in title/description."""
+		from frappe_fcm_notification.engine.dispatch import on_notification_log
+
+		log = frappe._dict(
+			for_user="someone@example.com",
+			subject="Wash status changed",
+			email_content="Add your message here",
+			title="Wash Status : Entered Bay",
+			description="Car Wash Status Changed To Entered Bay",
+			document_type="Car Wash Booking",
+			document_name="CWB-1",
+			name="log-1",
+		)
+
+		with (
+			patch("frappe_fcm_notification.engine.dispatch.resolve_project_for", return_value=TEST_PROJECT),
+			patch("frappe_fcm_notification.engine.dispatch.get_active_tokens", return_value=["t"]),
+			patch("frappe.enqueue") as enqueue,
+		):
+			on_notification_log(log)
+			log.title = log.description = None
+			on_notification_log(log)
+
+		first, second = (call.kwargs for call in enqueue.call_args_list)
+		self.assertEqual(
+			(first["title"], first["body"]),
+			("Wash Status : Entered Bay", "Car Wash Status Changed To Entered Bay"),
+		)
+		self.assertEqual((second["title"], second["body"]), ("Wash status changed", "Add your message here"))
+
 	def test_failures_are_logged_but_successes_are_sampled(self):
 		"""One row per recipient would out-write the sends themselves."""
 		campaign = self.make_campaign()

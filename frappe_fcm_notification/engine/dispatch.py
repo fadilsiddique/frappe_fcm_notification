@@ -62,8 +62,10 @@ def on_notification_log(doc, method=None):
 		enqueue_after_commit=True,
 		project=project,
 		tokens=tokens[:MAX_TRANSACTIONAL_TOKENS],
-		title=doc.subject,
-		body=doc.email_content,
+		# Newer v16 fills title/description from the Notification's "Notification Title /
+		# Message" and leaves subject/email_content as whatever the hidden fields hold.
+		title=doc.get("title") or doc.subject,
+		body=doc.get("description") or doc.email_content,
 		data={
 			"doctype": doc.document_type or "",
 			"docname": str(doc.document_name or ""),
